@@ -466,7 +466,7 @@ RSpec.describe 'Apps' do
             'created_at' => iso8601,
             'updated_at' => iso8601
           },
-          'entity'   => {
+          'entity' => {
             'name'                       => 'maria',
             'production'                 => false,
             'space_guid'                 => space.guid,
@@ -543,7 +543,7 @@ RSpec.describe 'Apps' do
               'created_at' => iso8601,
               'updated_at' => iso8601
             },
-            'entity'   => {
+            'entity' => {
               'name'                       => 'maria',
               'production'                 => false,
               'space_guid'                 => space.guid,
