@@ -7,7 +7,7 @@ module VCAP::CloudController
 
     describe 'PUT /v2/app/:id/bits' do
       let(:app_obj) do
-        AppFactory.make(droplet_hash: nil, package_hash: nil, package_state: 'PENDING')
+        App.make
       end
 
       let(:tmpdir) { Dir.mktmpdir }
@@ -194,7 +194,7 @@ module VCAP::CloudController
 
           describe 'resources' do
             context 'with a bad file path' do
-              let(:req_body) { { resources: JSON.dump([{ 'fn' => '../../lol', 'sha1' => 'abc', 'size' => 2048 }]) } }
+              let(:req_body) { { resources: JSON.dump([{ 'fn' => '../../lol', 'sha1' => 'abc', 'size' => 2048 }]), application: valid_zip } }
 
               it 'fails to upload' do
                 make_request
@@ -210,7 +210,7 @@ module VCAP::CloudController
 
             context 'with a bad file mode' do
               context 'when the file is not readable by owner' do
-                let(:req_body) { { resources: JSON.dump([{ 'fn' => 'lol', 'sha1' => 'abc', 'size' => 2048, 'mode' => '377' }]) } }
+                let(:req_body) { { resources: JSON.dump([{ 'fn' => 'lol', 'sha1' => 'abc', 'size' => 2048, 'mode' => '377' }]), application: valid_zip } }
 
                 it 'fails to upload' do
                   make_request
@@ -224,7 +224,7 @@ module VCAP::CloudController
               end
 
               context 'when the file is not writable by owner' do
-                let(:req_body) { { resources: JSON.dump([{ 'fn' => 'lol', 'sha1' => 'abc', 'size' => 2048, 'mode' => '577' }]) } }
+                let(:req_body) { { resources: JSON.dump([{ 'fn' => 'lol', 'sha1' => 'abc', 'size' => 2048, 'mode' => '577' }]), application: valid_zip } }
 
                 it 'fails to upload' do
                   make_request
@@ -272,7 +272,7 @@ module VCAP::CloudController
 
           response_body = JSON.parse(last_response.body, symbolize_names: true)
           job = Delayed::Job.last
-          expect(job.handler).to include(app_obj.guid)
+          expect(job.handler).to include(app_obj.reload.package.guid)
           expect(job.queue).to eq('cc-api_z1-99')
           expect(job.guid).not_to be_nil
           expect(last_response.status).to eq 201
@@ -351,10 +351,24 @@ module VCAP::CloudController
           end
         end
       end
+
+      context 'when the app is a docker app' do
+        let(:app_obj) { App.make(app: AppModel.make(:docker)) }
+        let(:req_body) { { resources: '[]', application: valid_zip } }
+        let(:headers) { admin_headers }
+
+        it 'raises an error' do
+          make_request
+
+          expect(last_response.status).to eq(422)
+          expect(decoded_response['error_code']).to match(/UnprocessableEntity/)
+          expect(decoded_response['description']).to match(/cannot upload bits to a docker app/)
+        end
+      end
     end
 
     describe 'POST /v2/apps/:guid/copy_bits' do
-      let(:dest_app) { AppFactory.make }
+      let(:dest_app) { App.make }
       let(:src_app) { AppFactory.make }
       let(:json_payload) { { 'source_app_guid' => src_app.guid }.to_json }
 
